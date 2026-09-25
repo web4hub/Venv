@@ -70,3 +70,19 @@ jobs:
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
+      
+jobs:
+  repro:
+    runs-on: ubuntu-26.04   # same variable on ubuntu-24.04
+    steps:
+      - run: grep XDG_RUNTIME_DIR /etc/environment
+
+      - name: a session of another user gets the wrong XDG_RUNTIME_DIR
+        run: |
+          sudo useradd -u2000 -m -d/home/other -s/bin/bash other
+          sudo mkdir -p -m 0700 /home/other/.ssh
+          ssh-keygen -t ecdsa -N "" -f "$HOME/.ssh/other.key"
+          sudo cp "$HOME/.ssh/other.key.pub" /home/other/.ssh/authorized_keys
+          sudo chown -R other:other /home/other
+          ssh -t -t -o StrictHostKeyChecking=no -i "$HOME/.ssh/other.key" other@localhost -- \
+            'id -u; echo "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"; ls -ld /run/user/1001; systemctl --user show --property Version'
